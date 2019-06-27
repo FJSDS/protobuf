@@ -527,7 +527,23 @@ var (
 	protoTypedNils = make(map[string]Message)      // a map from proto names to typed nil pointers
 	protoMapTypes  = make(map[string]reflect.Type) // a map from proto names to map types
 	revProtoTypes  = make(map[reflect.Type]string)
+	protoMsgIDTypes = make(map[uint16]reflect.Type)
 )
+
+func RegisterMsgIDType(msgID uint16,x Message)  {
+	if _,ok:=protoMsgIDTypes[msgID];ok{
+		panic(fmt.Sprintf("proto: duplicate proto msgID registered: %d", msgID))
+		return
+	}
+	protoMsgIDTypes[msgID]=reflect.TypeOf(x)
+}
+
+func MessageMsgID(msgID uint16) Message{
+	if v,ok:=protoMsgIDTypes[msgID];ok{
+		return reflect.New(v).Interface().(Message)
+	}
+	return nil
+}
 
 // RegisterType is called from generated code and maps from the fully qualified
 // proto name to the type (pointer to struct) of the protocol buffer.

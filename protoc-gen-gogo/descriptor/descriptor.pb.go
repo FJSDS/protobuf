@@ -4,9 +4,9 @@
 package descriptor
 
 import (
-	fmt "fmt"
-	proto "github.com/gogo/protobuf/proto"
-	math "math"
+	"fmt"
+	"github.com/gogo/protobuf/proto"
+	"math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -446,8 +446,10 @@ func (m *FileDescriptorProto) GetName() string {
 }
 
 func (m *FileDescriptorProto) GetPackage() string {
-	if m != nil && m.Package != nil {
-		return *m.Package
+	if m != nil {
+		if  m.Package != nil{
+			return *m.Package
+		}
 	}
 	return ""
 }
