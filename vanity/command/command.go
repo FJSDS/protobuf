@@ -60,10 +60,11 @@ import (
 func Read() *plugin.CodeGeneratorRequest {
 	g := generator.New()
 	data, err := ioutil.ReadAll(os.Stdin)
+	//data, err := ioutil.ReadFile("./proto.pb")
 	if err != nil {
 		g.Error(err, "reading input")
 	}
-
+	//ioutil.WriteFile("./proto.pb",data,0666)
 	if err := proto.Unmarshal(data, g.Request); err != nil {
 		g.Error(err, "parsing input proto")
 	}

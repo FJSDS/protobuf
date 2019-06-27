@@ -53,9 +53,11 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
+	"io/ioutil"
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -720,7 +722,12 @@ func (g *Generator) defaultGoPackage() GoPackageName {
 // It also defines unique package names for all imported files.
 func (g *Generator) SetPackageNames() {
 	g.outputImportPath = g.genFiles[0].importPath
-
+	g.Pkg = map[string]string{
+		"fmt":          "fmt",
+		"math":         "math",
+		"proto":        "proto",
+		"golang_proto": "golang_proto",
+	}
 	defaultPackageNames := make(map[GoImportPath]GoPackageName)
 	for _, f := range g.genFiles {
 		if _, p, ok := f.goPackageOption(); ok {
@@ -751,6 +758,10 @@ func (g *Generator) SetPackageNames() {
 			// Source filename.
 			f.packageName = cleanPackageName(baseName(f.GetName()))
 		}
+		for _,v:= range f.Dependency {
+			dependencyPackageName := string(cleanPackageName(baseName(v)))
+			g.Pkg[dependencyPackageName] = filepath.Join("git.snrui.net/root/RuiServer/cmd/pbmsg",dependencyPackageName)
+		}
 	}
 
 	// Check that all files have a consistent package name and import path.
@@ -765,12 +776,8 @@ func (g *Generator) SetPackageNames() {
 
 	// Names of support packages. These never vary (if there are conflicts,
 	// we rename the conflicting package), so this could be removed someday.
-	g.Pkg = map[string]string{
-		"fmt":          "fmt",
-		"math":         "math",
-		"proto":        "proto",
-		"golang_proto": "golang_proto",
-	}
+
+
 }
 
 // WrapTypes walks the incoming data, wrapping DescriptorProtos, EnumDescriptorProtos
@@ -1269,7 +1276,9 @@ func (g *Generator) generate(file *FileDescriptor) {
 		if serr := s.Err(); serr != nil {
 			g.Fail("bad Go source code was generated:", err.Error(), "\n"+string(original))
 		} else {
+			ioutil.WriteFile("./err.pb",src.Bytes(),0666)
 			g.Fail("bad Go source code was generated:", err.Error(), "\n"+src.String())
+
 		}
 	}
 	ast.SortImports(fset, fileAST)
@@ -1398,6 +1407,13 @@ func (g *Generator) generateImports() {
 	}
 	for importPath := range g.addedImports {
 		imports[importPath] = g.GoPackageName(importPath)
+	}
+
+	for _,v:=range g.genFiles {
+		for _,v1:=range v.Dependency{
+			pkgName:=cleanPackageName(baseName(v1))
+			imports[GoImportPath(path.Join("git.snrui.net/root/RuiServer/cmd/pbmsg",string(pkgName)))] = pkgName
+		}
 	}
 	// We almost always need a proto import.  Rather than computing when we
 	// do, which is tricky when there's a plugin, just import it and
@@ -2181,7 +2197,18 @@ type simpleField struct {
 
 // decl prints the declaration of the field in the struct (if any).
 func (f *simpleField) decl(g *Generator, mc *msgCtx) {
-	g.P(f.comment, Annotate(mc.message.file, f.fullPath, f.goName), "\t", f.goType, "\t`", f.tags, "`", f.deprecated)
+	goType:=f.goType
+	if f.getProtoType()==descriptor.FieldDescriptorProto_TYPE_MESSAGE {
+		o:=g.ObjectNamed(f.getProtoTypeName())
+		if *o.File().Name!=g.Request.FileToGenerate[0]{
+			if isRepeated(f.protoField){
+				goType ="[]*"+strings.Split(*o.File().Name,".")[0]+"."+strings.TrimLeft(f.goType,"[]*")
+			}else{
+				goType ="*"+strings.Split(*o.File().Name,".")[0]+"."+strings.TrimLeft(f.goType,"*")
+			}
+		}
+	}
+	g.P(f.comment, Annotate(mc.message.file, f.fullPath, f.goName), "\t",goType, "\t`", f.tags, "`", f.deprecated)
 }
 
 // getter prints the getter for the field.
@@ -2885,6 +2912,20 @@ func (g *Generator) generateInternalStructFields(mc *msgCtx, topLevelFields []to
 	}
 }
 
+func (g *Generator) generateMsgID(mc *msgCtx)  {
+	if len(mc.message.enums)>0{
+		for _,v:=range mc.message.enums {
+			if *v.Name=="MsgID"{
+				if len(v.Value)>0 && *v.Value[0].Name=="ID"{
+					g.P("func (*", mc.goName, ") MsgID() int { return "+ strconv.Itoa(int(*v.Value[0].Number)) +"}")
+					return
+				}
+			}
+		}
+	}
+	//g.P("func (*", mc.goName, ") XXX_OneofFuncs() (func", encSig, ", func", decSig, ", func", sizeSig, ", []interface{}) {")
+}
+
 // generateOneofFuncs adds all the utility functions for oneof, including marshalling, unmarshalling and sizer.
 func (g *Generator) generateOneofFuncs(mc *msgCtx, topLevelFields []topLevelField) {
 	ofields := []*oneofField{}
@@ -2966,6 +3007,8 @@ func (g *Generator) generateOneofFuncs(mc *msgCtx, topLevelFields []topLevelFiel
 	g.P("}")
 	g.P()
 }
+
+
 
 func (g *Generator) generateOneofDecls(mc *msgCtx, topLevelFields []topLevelField) {
 	ofields := []*oneofField{}
@@ -3453,6 +3496,8 @@ func (g *Generator) generateMessage(message *Descriptor) {
 	g.P()
 	g.generateOneofFuncs(mc, topLevelFields)
 	g.P()
+	g.generateMsgID(mc)
+	g.P()
 
 	var oneofTypes []string
 	for _, f := range topLevelFields {
@@ -3485,6 +3530,20 @@ func (g *Generator) generateMessage(message *Descriptor) {
 	if gogoproto.ImportsGoGoProto(g.file.FileDescriptorProto) && gogoproto.RegistersGolangProto(g.file.FileDescriptorProto) {
 		g.addInitf("%s.RegisterType((*%s)(nil), %q)", g.Pkg["golang_proto"], goTypeName, fullName)
 	}
+	if len(mc.message.enums)>0{
+		for _,v:=range mc.message.enums {
+			if *v.Name=="MsgID"{
+				if len(v.Value)>0 && *v.Value[0].Name=="ID"{
+					g.addInitf("%s.RegisterMsgIDType(%d, (*%s)(nil))", g.Pkg["proto"], uint16(*v.Value[0].Number), goTypeName)
+					if gogoproto.ImportsGoGoProto(g.file.FileDescriptorProto) && gogoproto.RegistersGolangProto(g.file.FileDescriptorProto) {
+						g.addInitf("%s.RegisterMsgIDType(%d, (*%s)(nil))", g.Pkg["golang_proto"], uint16(*v.Value[0].Number), goTypeName)
+					}
+					break
+				}
+			}
+		}
+	}
+
 	if gogoproto.HasMessageName(g.file.FileDescriptorProto, message.DescriptorProto) {
 		g.P("func (*", goTypeName, ") XXX_MessageName() string {")
 		g.In()
@@ -3712,6 +3771,7 @@ func (g *Generator) generateEnumRegistration(enum *EnumDescriptor) {
 	if gogoproto.ImportsGoGoProto(g.file.FileDescriptorProto) && gogoproto.RegistersGolangProto(g.file.FileDescriptorProto) {
 		g.addInitf("%s.RegisterEnum(%q, %[3]s_name, %[3]s_value)", g.Pkg["golang_proto"], pkg+ccTypeName, ccTypeName)
 	}
+
 }
 
 // And now lots of helper functions.
