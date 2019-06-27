@@ -2200,10 +2200,12 @@ func (f *simpleField) decl(g *Generator, mc *msgCtx) {
 	goType:=f.goType
 	if f.getProtoType()==descriptor.FieldDescriptorProto_TYPE_MESSAGE{
 		o:=g.ObjectNamed(f.getProtoTypeName())
-		if isRepeated(f.protoField){
-			goType ="[]*"+strings.Split(*o.File().Name,".")[0]+"."+strings.TrimLeft(f.goType,"[]*")
-		}else {
-			goType = "*" + strings.Split(*o.File().Name, ".")[0] + "." + strings.TrimLeft(f.goType, "*")
+		if *o.File().Name!=g.Request.FileToGenerate[0] {
+			if isRepeated(f.protoField) {
+				goType = "[]*" + strings.Split(*o.File().Name, ".")[0] + "." + strings.TrimLeft(f.goType, "[]*")
+			} else {
+				goType = "*" + strings.Split(*o.File().Name, ".")[0] + "." + strings.TrimLeft(f.goType, "*")
+			}
 		}
 	}
 	g.P(f.comment, Annotate(mc.message.file, f.fullPath, f.goName), "\t",goType, "\t`", f.tags, "`", f.deprecated)
