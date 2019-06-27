@@ -5,7 +5,7 @@ package descriptor
 
 import (
 	"fmt"
-	"github.com/gogo/protobuf/proto"
+	"github.com/FJSDS/protobuf/proto"
 	"math"
 )
 

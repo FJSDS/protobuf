@@ -3,7 +3,7 @@ package merge
 import (
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/FJSDS/protobuf/proto"
 )
 
 func TestClone1(t *testing.T) {

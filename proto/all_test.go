@@ -45,9 +45,9 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/gogo/protobuf/proto"
-	pb3 "github.com/gogo/protobuf/proto/proto3_proto"
-	. "github.com/gogo/protobuf/proto/test_proto"
+	. "github.com/FJSDS/protobuf/proto"
+	pb3 "github.com/FJSDS/protobuf/proto/proto3_proto"
+	. "github.com/FJSDS/protobuf/proto/test_proto"
 )
 
 var globalO *Buffer

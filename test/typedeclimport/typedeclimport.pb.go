@@ -12,11 +12,11 @@ It has these top-level messages:
 */
 package typedeclimport
 
-import proto "github.com/gogo/protobuf/proto"
+import proto "github.com/FJSDS/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import _ "github.com/gogo/protobuf/gogoproto"
-import subpkg "github.com/gogo/protobuf/test/typedeclimport/subpkg"
+import _ "github.com/FJSDS/protobuf/gogoproto"
+import subpkg "github.com/FJSDS/protobuf/test/typedeclimport/subpkg"
 
 import io "io"
 
