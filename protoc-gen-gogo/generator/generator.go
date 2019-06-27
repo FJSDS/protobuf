@@ -2198,14 +2198,12 @@ type simpleField struct {
 // decl prints the declaration of the field in the struct (if any).
 func (f *simpleField) decl(g *Generator, mc *msgCtx) {
 	goType:=f.goType
-	if f.getProtoType()==descriptor.FieldDescriptorProto_TYPE_MESSAGE {
+	if f.getProtoType()==descriptor.FieldDescriptorProto_TYPE_MESSAGE{
 		o:=g.ObjectNamed(f.getProtoTypeName())
-		if *o.File().Name!=g.Request.FileToGenerate[0]{
-			if isRepeated(f.protoField){
-				goType ="[]*"+strings.Split(*o.File().Name,".")[0]+"."+strings.TrimLeft(f.goType,"[]*")
-			}else{
-				goType ="*"+strings.Split(*o.File().Name,".")[0]+"."+strings.TrimLeft(f.goType,"*")
-			}
+		if isRepeated(f.protoField){
+			goType ="[]*"+strings.Split(*o.File().Name,".")[0]+"."+strings.TrimLeft(f.goType,"[]*")
+		}else {
+			goType = "*" + strings.Split(*o.File().Name, ".")[0] + "." + strings.TrimLeft(f.goType, "*")
 		}
 	}
 	g.P(f.comment, Annotate(mc.message.file, f.fullPath, f.goName), "\t",goType, "\t`", f.tags, "`", f.deprecated)
