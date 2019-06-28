@@ -499,6 +499,10 @@ func (p *unmarshal) noStarOrSliceType(msg *generator.Descriptor, field *descript
 	return typ
 }
 
+func isRepeated(field *descriptor.FieldDescriptorProto) bool {
+	return field.Label != nil && *field.Label == descriptor.FieldDescriptorProto_LABEL_REPEATED
+}
+
 func (p *unmarshal) field(file *generator.FileDescriptor, msg *generator.Descriptor, field *descriptor.FieldDescriptorProto, fieldname string, proto3 bool) {
 	repeated := field.IsRepeated()
 	nullable := gogoproto.IsNullable(field)
@@ -668,6 +672,9 @@ func (p *unmarshal) field(file *generator.FileDescriptor, msg *generator.Descrip
 	case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
 		desc := p.ObjectNamed(field.GetTypeName())
 		msgname := p.TypeName(desc)
+		if *desc.File().Name != p.Request.FileToGenerate[0]{
+			msgname = strings.Split(*desc.File().Name, ".")[0] + "." + msgname
+		}
 		p.P(`var msglen int`)
 		p.decodeVarint("msglen", "int")
 		p.P(`if msglen < 0 {`)
@@ -1054,8 +1061,15 @@ func (p *unmarshal) field(file *generator.FileDescriptor, msg *generator.Descrip
 				p.P(`m.`, fieldname, ` = new([]byte)`)
 			} else {
 				goType, _ := p.GoType(nil, field)
+				goType = goType[1:]
+				if *field.Type==descriptor.FieldDescriptorProto_TYPE_MESSAGE{
+					o:=p.ObjectNamed(field.GetTypeName())
+					if *o.File().Name!=p.Request.FileToGenerate[0] {
+						goType =  strings.Split(*o.File().Name, ".")[0] + "." +goType
+					}
+				}
 				// remove the star from the type
-				p.P(`m.`, fieldname, ` = &`, goType[1:], `{}`)
+				p.P(`m.`, fieldname, ` = &`, goType, `{}`)
 			}
 			p.Out()
 			p.P(`}`)

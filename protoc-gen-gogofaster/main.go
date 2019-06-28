@@ -46,7 +46,6 @@ func main() {
 	vanity.ForEachFile(files, vanity.TurnOffGoUnrecognizedAll)
 	vanity.ForEachFile(files, vanity.TurnOffGoUnkeyedAll)
 	vanity.ForEachFile(files, vanity.TurnOffGoSizecacheAll)
-
 	resp := command.Generate(req)
 	command.Write(resp)
 }

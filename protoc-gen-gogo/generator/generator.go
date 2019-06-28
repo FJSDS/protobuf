@@ -2223,7 +2223,18 @@ func (f *simpleField) getter(g *Generator, mc *msgCtx) {
 	if f.deprecated != "" {
 		g.P(f.deprecated)
 	}
-	g.generateGet(mc, f.protoField, f.protoType, false, f.goName, f.goType, "", "", f.fullPath, f.getterName, f.getterDef)
+	goType := f.goType
+	if f.getProtoType()==descriptor.FieldDescriptorProto_TYPE_MESSAGE {
+		o := g.ObjectNamed(f.getProtoTypeName())
+		if *o.File().Name != g.Request.FileToGenerate[0] {
+			if isRepeated(f.protoField) {
+				goType = "[]*" + strings.Split(*o.File().Name, ".")[0] + "." + strings.TrimLeft(f.goType, "[]*")
+			} else {
+				goType = "*" + strings.Split(*o.File().Name, ".")[0] + "." + strings.TrimLeft(f.goType, "*")
+			}
+		}
+	}
+	g.generateGet(mc, f.protoField, f.protoType, false, f.goName, goType, "", "", f.fullPath, f.getterName, f.getterDef)
 }
 
 // setter prints the setter method of the field.

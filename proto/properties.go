@@ -521,6 +521,9 @@ func EnumValueMap(enumType string) map[string]int32 {
 	return enumValueMaps[enumType]
 }
 
+type MsgIDInterface interface {
+	MsgID()int
+}
 // A registry of all linked message types.
 // The string is a fully-qualified proto name ("pkg.Message").
 var (
@@ -540,7 +543,7 @@ func RegisterMsgIDType(msgID uint16,x Message)  {
 
 func MessageMsgID(msgID uint16) Message{
 	if v,ok:=protoMsgIDTypes[msgID];ok{
-		return reflect.New(v).Interface().(Message)
+		return reflect.New(v.Elem()).Interface().(Message)
 	}
 	return nil
 }
